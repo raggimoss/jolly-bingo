@@ -31,17 +31,18 @@ def send_welcome(message):
         users[user_id] = {'balance': 0, 'name': first_name}
     
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-    btn_play = types.KeyboardButton("🎲 ጨዋታ ጀምር (Play)")
-    btn_balance = types.KeyboardButton("💰 ባላንስ (Balance)")
-    btn_deposit = types.KeyboardButton("➕ ብር አስገባ (Deposit)")
-
-    btn_withdraw = types.KeyboardButton("➖ ብር አውጣ (Withdraw)")
-    markup.add(btn_play, btn_balance, btn_deposit, btn_withdraw)
+    markup.add(
+        types.KeyboardButton("Play Bingo"),
+        types.KeyboardButton("Balance"),
+        types.KeyboardButton("Deposit"),
+        types.KeyboardButton("Withdraw")
+    )
     
+
     welcome_text = (
-        f"እንኳን ወደ Jolly Bingo በደህና መጡ {first_name}!\n\n"
-        f"የእርስዎ ባላንስ: {users[user_id]['balance']} ብር\n\n"
-        "ለመጫወት ከታች ያሉትን ቁልፎች ይጠቀሙ።"
+        f"Welcome to Jolly Bingo {first_name}!\n\n"
+        f"Your Balance: {users[user_id]['balance']} ETB\n\n"
+        "Use the buttons below to start."
     )
     bot.send_message(message.chat.id, welcome_text, reply_markup=markup)
 
@@ -49,65 +50,63 @@ def send_welcome(message):
 def handle_buttons(message):
     user_id = str(message.from_user.id)
     if user_id not in users:
-        users[user_id] = {'balance': 0, 'name': 
-
-message.from_user.first_name}
+        users[user_id] = {'balance': 0, 'name': message.from_user.first_name}
         
     text = message.text
     
-    if text == "💰 ባላንስ (Balance)":
-        bot.reply_to(message, f"የአሁኑ ባላንስዎ: {users[user_id]['balance']} ብር ነው።")
+    if text == "Balance":
+        bot.reply_to(message, f"Your current 
+
+balance is: {users[user_id]['balance']} ETB.")
         
-    elif text == "➕ ብር አስገባ (Deposit)":
+    elif text == "Deposit":
         deposit_info = (
-            "ብር ለማስገባት የሚከተሉትን አካውንቶች ይጠቀሙ፦\n\n"
+            "To deposit money, transfer to:\n\n"
             "Telebirr: 09XXXXXXXX\n"
             "CBE: 1000XXXXXXXXX\n\n"
-            "ብሩን ከላኩ በኋላ የደረሰኙን ፎቶ (Screenshot) እዚህ ጋር ይላኩ። ሲረጋገጥ ወዲያውኑ ባላንስዎ ላይ ይገባል።"
+            "After transferring, send the receipt screenshot here."
         )
         bot.reply_to(message, deposit_info)
         
-    elif text == "➖ ብር አውጣ (Withdraw)":
+    elif text == "Withdraw":
         if users[user_id]['balance'] < 50:
-
-            bot.reply_to(message, "ብር ለማውጣት ቢያንስ 50 ብር ባላንስ ሊኖርዎት ይገባል።")
+            bot.reply_to(message, "Minimum withdrawal is 50 ETB.")
         else:
-            bot.reply_to(message, "የሚያወጡትን የብር መጠን እና የቴሌብር ስልክ ቁጥርዎን ይጻፉ።")
+            bot.reply_to(message, "Reply with the amount and your Telebirr phone number.")
             
-    elif text == "🎲 ጨዋታ ጀምር (Play)":
+    elif text == "Play Bingo":
+
         if users[user_id]['balance'] < 10:
-            bot.reply_to(message, "ለመጫወት ቢያንስ 10 ብር ሊኖርዎት ይገባል። እባክዎ መጀመሪያ ብር ያስገቡ!")
+            bot.reply_to(message, "You need at least 10 ETB to play. Please Deposit first!")
         else:
-            bot.reply_to(message, "ጨዋታው በቅርቡ ይጀምራል!")
+            bot.reply_to(message, "Game starting soon!")
 
 @bot.message_handler(content_types=['photo'])
 def handle_receipt(message):
     user_id = str(message.from_user.id)
     first_name = message.from_user.first_name
-    bot.reply_to(message, "ደረሰኝዎ ደርሶናል! 
-
-በጥቂት ደቂቃዎች ውስጥ ተረጋግጦ ባላንስዎ ይሞላል።")
+    bot.reply_to(message, "Receipt received! Your balance will be updated shortly.")
     if ADMIN_ID:
-        bot.send_message(ADMIN_ID, f"አዲስ የክፍያ ደረሰኝ!\nከተጫዋች: {first_name}\nID: {user_id}\n\nብር ለመጨመር ይህን ይላኩ:\n/add {user_id} 100")
+        bot.send_message(ADMIN_ID, f"New Deposit Receipt!\nFrom: {first_name}\nID: {user_id}\n\nTo add balance send:\n/add {user_id} 100")
 
 @bot.message_handler(commands=['add'])
+
 def add_balance(message):
     if str(message.from_user.id) == str(ADMIN_ID):
         try:
             parts = message.text.split()
-            target_id = parts
-            amount = int(parts)
+            target_id = parts[1]
+            amount = int(parts[2])
             if target_id in users:
                 users[target_id]['balance'] += amount
-                bot.reply_to(message, f"ለተጫዋች {target_id} {amount} ብር በተሳካ ሁኔታ ተጨምሯል።")
-                bot.send_message(target_id, 
-
-f"እንኳን ደስ አለዎት! {amount} ብር ወደ አካውንትዎ ገብቷል።")
+                bot.reply_to(message, f"Added {amount} ETB to user {target_id}.")
+                bot.send_message(target_id, f"Congratulations! {amount} ETB has been added to your account.")
             else:
-                bot.reply_to(message, "ተጫዋቹ አልተገኘም።")
+                bot.reply_to(message, "User not found.")
         except:
-            bot.reply_to(message, "አጠቃቀም: /add USER_ID AMOUNT")
+            bot.reply_to(message, "Usage: /add USER_ID AMOUNT")
 
 if __name__ == "__main__":
+
     threading.Thread(target=run_web).start()
     bot.infinity_polling()
