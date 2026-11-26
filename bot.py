@@ -1,14 +1,21 @@
+import os, re, urllib.request, json
+from threading import Thread
+from flask import Flask
 import telebot
 from telebot import types
-import re, random, urllib.request, json
 
 TOKEN = "9022412005:AAE_iuHj950P4MrqFyrcfzWTenT29YM3Shw"
 ADMIN_ID = 7516636412
-DB_URL = "https://jolly-bingo-default-rtdb.firebaseio.com"
+DB_URL = "https://firebaseio.com"
 WEB_URL = "https://github.io"
 
 TB_NUM, TB_NAME = "0919946150", "ሞገስ ግርማይ ረዳ"
 CBE_NUM, CBE_NAME = "1000786167136", "ሞገስ ግርማይ ረዳ"
+
+app = Flask(__name__)
+@app.route('/')
+def home():
+    return "JOLLY BINGO 24/7 ONLINE!"
 
 bot = telebot.TeleBot(TOKEN)
 used_tx, states = set(), {}
@@ -22,12 +29,7 @@ def db_get(path):
 
 def db_put(path, data):
     try:
-        req = urllib.request.Request(
-            f"{DB_URL}/{path}.json",
-            data=json.dumps(data).encode(),
-            headers={"Content-Type": "application/json"},
-            method="PUT"
-        )
+        req = urllib.request.Request(f"{DB_URL}/{path}.json", data=json.dumps(data).encode(), headers={"Content-Type": "application/json"}, method="PUT")
         urllib.request.urlopen(req, timeout=5)
     except Exception:
         pass
@@ -137,5 +139,9 @@ def all_msg(m):
     else:
         bot.send_message(m.chat.id, "👇 ከታች ያሉትን ቁልፎች ይጠቀሙ፦", reply_markup=menu())
 
-print("JOLLY BINGO ቦት ከ Firebase ጋር ስራ ጀምሯል...")
-bot.infinity_polling()
+def run_bot():
+    bot.infinity_polling()
+
+if __name__ == "__main__":
+    Thread(target=run_bot).start()
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
