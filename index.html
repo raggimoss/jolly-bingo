@@ -27,7 +27,7 @@ td.fr{background:#38bdf8;color:#0f172a;font-size:11px}
 .wbtn{background:#ef4444;color:#fff;border:none;padding:12px 30px;font-size:18px;font-weight:700;border-radius:20px;margin-top:8px}
 </style>
 </head>
-<body>
+<body onclick="unlockAudio()">
 <h1>🎉 JOLLY BINGO 🎉</h1>
 <div class="top">
 <span>💳 ሂሳብ: <span id="bal">10.00</span> ብር</span>
@@ -50,9 +50,18 @@ td.fr{background:#38bdf8;color:#0f172a;font-size:11px}
 <div id="wt" style="display:none;color:#fbbf24;margin-top:20px">👁 ካርቴላ ስላልመረጡ ጨዋታውን እየተመለከቱ ነው...</div>
 </div>
 <script>
-let bal=10,bet=10,mc=null,pl=1,dr=[],t1=null,t2=null,sec=30,snd=1;
-function tSnd(){snd=!snd;document.getElementById("snd").innerText=snd?"🔊":"🔇"}
-function pAud(n){if(snd)new Audio("sounds/"+n+".mp3").play().catch(function(){})}
+let bal=10,bet=10,mc=null,pl=1,dr=[],t1=null,t2=null,sec=30,snd=1,unlocked=0;
+let player=new Audio();
+function unlockAudio(){if(!unlocked){player.play().catch(function(){});unlocked=1}}
+function tSnd(){snd=!snd;document.getElementById("snd").innerText=snd?"🔊":"🔇";unlockAudio()}
+function pAud(n){
+if(!snd)return;
+player.src="sounds/"+n+".m4a";
+player.play().catch(function(){
+  player.src="sounds/"+n+".M4A";
+  player.play().catch(function(){});
+});
+}
 function uPot(){document.getElementById("pc").innerText=pl;document.getElementById("prz").innerText=(pl*bet*0.8).toFixed(2)}
 function mCard(num){
 let s=num*9301+49297,rnd=function(){s=(s*1664525+1013904223)%4294967296;return s/4294967296},card=[];
@@ -63,8 +72,9 @@ function dGrid(){
 let g=document.getElementById("grid");g.innerHTML="";
 for(let i=1;i<=400;i++){let b=document.createElement("button");b.innerText=i;b.id="c"+i;b.className="cb";b.onclick=function(){pick(i)};g.appendChild(b)}
 }
-function sBet(a){if(mc)return;bet=a;document.querySelectorAll(".bets button").forEach(function(b){b.classList.remove("act")});document.getElementById("b"+a).classList.add("act");uPot()}
+function sBet(a){unlockAudio();if(mc)return;bet=a;document.querySelectorAll(".bets button").forEach(function(b){b.classList.remove("act")});document.getElementById("b"+a).classList.add("act");uPot()}
 function pick(n){
+unlockAudio();
 if(mc){alert("✅ ካርቴላ #"+mc+" መርጠዋል!");return}
 if(bal<bet){alert("❌ በቂ ሂሳብ የለዎትም!");return}
 bal-=bet;mc=n;pl++;document.getElementById("bal").innerText=bal.toFixed(2);document.getElementById("cid").innerText=n;document.getElementById("c"+n).classList.add("sel");uPot()
