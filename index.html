@@ -1,184 +1,143 @@
-<!DOCTYPE html>
-<html lang="am">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JOLLY BINGO</title>
-<script src="https://telegram.org"></script>
-<link rel="stylesheet" href="style.css">
-</head>
-<body onclick="unlock()">
-<h1>🎉 JOLLY BINGO 🎉</h1>
-<div class="top">
-<span>💳 ሂሳብ: <span id="bal">0.00</span> ብር</span>
-<span>🎫 ካርቴላ: <span id="cid" style="color:#fbbf24">--</span></span>
-<button id="snd" onclick="tSnd()" style="background:#334155;color:#fff;border:none;border-radius:5px;padding:3px 7px">🔊 ድምፅ</button>
-</div>
-<div class="pot">👥 ካርቴላዎች: <span id="pc">0</span> | 🏆 ደራሽ (80%): <span id="prz" style="color:#fbbf24">0.00</span> ብር</div>
-<div id="lobby">
-<div class="tmr" id="statusMsg">⏳ ቢያንስ 2 ተጫዋቾች እስኪገቡ በመጠበቅ ላይ...</div>
-<div class="bets">
-<button id="b10" class="act" onclick="sBet(10)">10 ብር</button>
-<button id="b20" onclick="sBet(20)">20 ብር</button>
-<button id="b50" onclick="sBet(50)">50 ብር (ሳምንታዊ)</button>
-</div>
-<div class="grid" id="grid"></div>
-</div>
-<div id="game">
-<div class="cbox"><div>🎱 የሚጠራው ቁጥር</div><div class="num" id="cur">--</div><div style="font-size:11px;color:#94a3b8">የወጡ (<span id="cnt">0</span>/75): <span id="hist">--</span></div></div>
-<div id="boards"></div>
-<div id="wt" style="display:none;color:#fbbf24;margin-top:20px;font-weight:bold">👁 ጨዋታው ተጀምሯል! ቀጣዩ ዙር እስኪጀምር እየተመለከቱ ነው...</div>
-</div>
 <script>
 const DB="https://firebaseio.com";
-const uid=new URLSearchParams(location.search).get("uid")||(window.Telegram?.WebApp?.initDataUnsafe?.user?.id)||"guest";
-let bal=0,bet=10,myCards=[],banned=[],snd=1,unlk=0,lastIdx=-1,calledNums=[],room={startAt:0,cards:{},winner:null};
-let aud=new Audio();
+const uid=new URLSearchParams(location.search).get("uid")||(window.Telegram&&window.Telegram.WebApp&&window.Telegram.WebApp.initDataUnsafe&&window.Telegram.WebApp.initDataUnsafe.user?window.Telegram.WebApp.initDataUnsafe.user.id:"guest_user");
+let bal=10,bet=10,myCards=new Array(),banned=new Array(),snd=1,unlk=0,lastIdx=-1,calledNums=new Array(),room={startAt:0,cards:{},winner:null},aud=new Audio();
+
 function unlock(){if(!unlk){aud.play().catch(function(){});unlk=1}}
 function tSnd(){snd=!snd;document.getElementById("snd").innerText=snd?"🔊 ድምፅ":"🔇 ዝግ";unlock()}
-function pAud(n){if(!snd)return;let p=String(n).padStart(3,"0");aud.src=encodeURI("sounds/Voice "+p+".m4a");aud.play().catch(function(){})}
+function pAud(n){if(!snd)return;aud.src=encodeURI("sounds/Voice "+String(n).padStart(3,"0")+".m4a");aud.play().catch(function(){})}
 async function dbGet(p){try{let r=await fetch(DB+"/"+p+".json");return await r.json()}catch(e){return null}}
 async function dbPut(p,d){try{await fetch(DB+"/"+p+".json",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)})}catch(e){}}
 async function dbPatch(p,d){try{await fetch(DB+"/"+p+".json",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)})}catch(e){}}
 
 async function loadBal(){
-let v=await dbGet("users/"+uid+"/balance");
-bal=v!==null?parseFloat(v):0;
-document.getElementById("bal").innerText=bal.toFixed(2);
+  let u=await dbGet("users/"+uid);
+  if(!u||u.balance===undefined){bal=10;await dbPut("users/"+uid,{balance:10,bonus:true})}
+  else bal=parseFloat(u.balance);
+  document.getElementById("bal").innerText=bal.toFixed(2);
 }
 function mCard(num){
-let s=num*9301+49297,rnd=function(){s=(s*1664525+1013904223)%4294967296;return s/4294967296},card=[];
-for(let c=0;c<5;c++){let p=[],st=c*15+1;for(let n=st;n<st+15;n++)p.push(n);for(let i=p.length-1;i>0;i--){let j=Math.floor(rnd()*(i+1)),x=p[i];p[i]=p[j];p[j]=x}card.push(p.slice(0,5))}
-return card
+  let s=num*9301+49297,rnd=function(){s=(s*1664525+1013904223)%4294967296;return s/4294967296},card=new Array();
+  for(let c=0;c<5;c++){
+    let p=new Array(),st=c*15+1;
+    for(let n=st;n<st+15;n++)p.push(n);
+    for(let i=p.length-1;i>0;i--){let j=Math.floor(rnd()*(i+1)),t=p[i];p[i]=p[j];p[j]=t}
+    card.push(p.slice(0,5));
+  }
+  return card;
 }
 function getOrder(seed){
-let s=seed*7919+104729,rnd=function(){s=(s*1664525+1013904223)%4294967296;return s/4294967296},p=[];
-for(let n=1;n<=75;n++)p.push(n);
-for(let i=p.length-1;i>0;i--){let j=Math.floor(rnd()*(i+1)),x=p[i];p[i]=p[j];p[j]=x}
-return p
+  let s=seed*7919+104729,rnd=function(){s=(s*1664525+1013904223)%4294967296;return s/4294967296},p=new Array();
+  for(let n=1;n<=75;n++)p.push(n);
+  for(let i=p.length-1;i>0;i--){let j=Math.floor(rnd()*(i+1)),t=p[i];p[i]=p[j];p[j]=t}
+  return p;
 }
 function dGrid(){
-let g=document.getElementById("grid");g.innerHTML="";
-let taken=room.cards||{};
-for(let i=1;i<=400;i++){
-let b=document.createElement("button");b.innerText=i;b.className="cb";
-if(myCards.indexOf(i)!==-1)b.classList.add("sel");
-else if(taken[i])b.classList.add("tkn");
-else b.onclick=function(){pick(i)};
-g.appendChild(b);
-}
+  let g=document.getElementById("grid");g.innerHTML="";let t=room.cards||{};
+  for(let i=1;i<=400;i++){
+    let b=document.createElement("button");b.innerText=i;b.className="cb";
+    if(myCards.indexOf(i)!==-1)b.classList.add("sel");
+    else if(t[i])b.classList.add("tkn");
+    else b.onclick=function(){pick(i)};
+    g.appendChild(b);
+  }
 }
 function sBet(a){
-let taken=room.cards||{};
-if(Object.keys(taken).length>0){alert("⚠️ ተጫዋቾች ስለገቡ መጠን መቀየር አይቻልም!");return}
-bet=a;
-document.querySelectorAll(".bets button").forEach(function(b){b.classList.remove("act")});
-document.getElementById("b"+a).classList.add("act");
-syncRoom();
+  if(Object.keys(room.cards||{}).length>0){alert("⚠️ ተጫዋቾች ስለገቡ መጠን መቀየር አይቻልም!");return}
+  bet=a;
+  new Array(10,20,50).forEach(function(x){
+    document.getElementById("b"+x).className=x===a?"act":"";
+  });syncRoom();
 }
 async function pick(n){
-unlock();
-if(myCards.length>=2){alert("⚠️ እስከ 2 ካርቴላ ብቻ መያዝ ይችላሉ!");return}
-if(bal<bet){alert("❌ በቂ ሂሳብ የለዎትም! ቦቱ ላይ ሂሳብ ይሙሉ።");return}
-let cur=await dbGet("rooms/b"+bet+"/cards/"+n);
-if(cur){alert("❌ ይህ ካርቴላ አሁን ተይዟል!");syncRoom();return}
-bal-=bet;await dbPut("users/"+uid+"/balance",Number(bal.toFixed(2)));
-document.getElementById("bal").innerText=bal.toFixed(2);
-myCards.push(n);
-document.getElementById("cid").innerText=myCards.map(x=>"#"+x).join(", ");
-await dbPut("rooms/b"+bet+"/cards/"+n,String(uid));
-let all=await dbGet("rooms/b"+bet+"/cards")||{};
-let count=Object.keys(all).length;
-if(count>=2 && (!room.startAt || room.startAt===0)){
-await dbPatch("rooms/b"+bet,{startAt:Math.floor(Date.now()/1000)+30,seed:Math.floor(Math.random()*99999)+1});
-}
-syncRoom();
+  unlock();
+  if(myCards.length>=2){alert("⚠️ እስከ 2 ካርቴላ ብቻ መያዝ ይችላሉ!");return}
+  if(bal<bet){alert("❌ በቂ ሂሳብ የለዎትም! ቦቱ ላይ ሂሳብ ይሙሉ።");return}
+  if(await dbGet("rooms/b"+bet+"/cards/"+n)){alert("❌ ይህ ካርቴላ አሁን ተይዟል!");syncRoom();return}
+  bal-=bet;await dbPut("users/"+uid+"/balance",Number(bal.toFixed(2)));
+  document.getElementById("bal").innerText=bal.toFixed(2);
+  myCards.push(n);document.getElementById("cid").innerText=myCards.map(function(x){return "#"+x}).join(", ");
+  await dbPut("rooms/b"+bet+"/cards/"+n,String(uid));
+  let all=await dbGet("rooms/b"+bet+"/cards")||{};
+  if(Object.keys(all).length>=2 && (!room.startAt||room.startAt===0)){
+    await dbPatch("rooms/b"+bet,{startAt:Math.floor(Date.now()/1000)+30,seed:Math.floor(Math.random()*99999)+1});
+  }syncRoom();
 }
 function buildBoards(){
-let box=document.getElementById("boards");box.innerHTML="";
-myCards.forEach(function(cNum){
-let card=mCard(cNum),wrap=document.createElement("div");wrap.className="cwrap";wrap.id="wrap-"+cNum;
-let title=document.createElement("div");title.style.fontWeight="bold";title.style.color="#fbbf24";title.innerText="🎫 ካርቴላ #"+cNum;
-let tbl=document.createElement("table");tbl.innerHTML="<thead><tr><th>B</th><th>I</th><th>N</th><th>G</th><th>O</th></tr></thead>";
-let tb=document.createElement("tbody");
-for(let r=0;r<5;r++){let tr=document.createElement("tr");for(let c=0;c<5;c++){let td=document.createElement("td");if(r===2&&c===2){td.innerText="FREE";td.className="fr mk"}else{let val=card[c][r];td.innerText=val;td.id="x-"+cNum+"-"+c+"-"+r;td.dataset.val=val;td.onclick=function(){unlock();if(banned.indexOf(cNum)===-1)td.classList.toggle("mk")}}tr.appendChild(td)}tb.appendChild(tr)}
-tbl.appendChild(tb);
-let btn=document.createElement("button");btn.className="wbtn";btn.id="wbtn-"+cNum;btn.innerText="🎉 BINGO (#"+cNum+")";
-btn.onclick=function(){cWin(cNum)};
-wrap.appendChild(title);wrap.appendChild(tbl);wrap.appendChild(btn);box.appendChild(wrap);
-});
+  let box=document.getElementById("boards");box.innerHTML="";
+  myCards.forEach(function(cNum){
+    let card=mCard(cNum),w=document.createElement("div");
+    w.className="cwrap";w.id="wrap-"+cNum;
+    let h='<div style="font-weight:bold;color:#fbbf24;margin-bottom:4px">🎫 ካርቴላ #'+cNum+'</div><table><thead><tr><th>B</th><th>I</th><th>N</th><th>G</th><th>O</th></tr></thead><tbody>';
+    for(let r=0;r<5;r++){
+      h+="<tr>";
+      for(let c=0;c<5;c++){
+        if(r===2&&c===2)h+='<td class="fr mk">FREE</td>';
+        else{let v=card[c][r];h+='<td id="x-'+cNum+'-'+c+'-'+r+'" data-val="'+v+'" onclick="markCell(this,'+cNum+')">'+v+'</td>'}
+      }
+      h+="</tr>";
+    }
+    h+='</tbody></table><button id="wbtn-'+cNum+'" class="wbtn" onclick="cWin('+cNum+')">🎉 BINGO (#'+cNum+')</button>';
+    w.innerHTML=h;box.appendChild(w);
+  });
+}
+function markCell(el,cNum){
+  unlock();if(banned.indexOf(cNum)!==-1)return;
+  el.classList.toggle("mk");
 }
 async function syncRoom(){
-let r=await dbGet("rooms/b"+bet);
-room=r||{startAt:0,cards:{},winner:null,seed:12345};
-let cards=room.cards||{};
-let cnt=Object.keys(cards).length;
-document.getElementById("pc").innerText=cnt;
-document.getElementById("prz").innerText=(cnt*bet*0.8).toFixed(2);
-if(room.winner){
-alert("🏆 ጨዋታው አልቋል! አሸናፊ: ካርቴላ #"+room.winner);
-myCards=[];banned=[];lastIdx=-1;calledNums=[];
-document.getElementById("cid").innerText="--";document.getElementById("boards").innerHTML="";
-await dbPut("rooms/b"+bet,{startAt:0,cards:{},winner:null,seed:0});
-return;
-}
-let now=Math.floor(Date.now()/1000);
-if(!room.startAt || room.startAt===0 || now<room.startAt){
-document.getElementById("lobby").style.display="block";document.getElementById("game").style.display="none";
-if(room.startAt && room.startAt>now){
-document.getElementById("statusMsg").innerText="⏳ ጨዋታው ሊጀምር: "+(room.startAt-now)+" ሰከንድ";
-}else{
-document.getElementById("statusMsg").innerText="⏳ ቢያንስ 2 ካርቴላ እስኪመረጥ በመጠበቅ ላይ... ("+cnt+"/2)";
-}
-dGrid();
-}else{
-document.getElementById("lobby").style.display="none";document.getElementById("game").style.display="block";
-if(myCards.length>0){
-if(document.getElementById("boards").innerHTML==="")buildBoards();
-document.getElementById("boards").style.display="block";document.getElementById("wt").style.display="none";
-}else{
-document.getElementById("boards").style.display="none";document.getElementById("wt").style.display="block";
-}
-let idx=Math.min(74,Math.floor((now-room.startAt)/3.5));
-if(idx!==lastIdx){
-lastIdx=idx;let order=getOrder(room.seed||12345);calledNums=order.slice(0,idx+1);
-let n=calledNums[calledNums.length-1];
-document.getElementById("cur").innerText="BINGO"[Math.floor((n-1)/15)]+"-"+n;
-document.getElementById("cnt").innerText=calledNums.length;
-document.getElementById("hist").innerText=calledNums.slice(-5).join(", ");
-pAud(n);
-}
-if(idx>=74){
-myCards=[];banned=[];lastIdx=-1;document.getElementById("cid").innerText="--";document.getElementById("boards").innerHTML="";
-await dbPut("rooms/b"+bet,{startAt:0,cards:{},winner:null,seed:0});
-}
-}
+  room=await dbGet("rooms/b"+bet)||{startAt:0,cards:{},winner:null,seed:12345};
+  let cnt=Object.keys(room.cards||{}).length;
+  document.getElementById("pc").innerText=cnt;
+  document.getElementById("prz").innerText=(cnt*bet*0.8).toFixed(2);
+  if(room.winner){
+    alert("🏆 ጨዋታው አልቋል! አሸናፊ: ካርቴላ #"+room.winner);
+    myCards=new Array();banned=new Array();lastIdx=-1;calledNums=new Array();document.getElementById("cid").innerText="--";document.getElementById("boards").innerHTML="";
+    await dbPut("rooms/b"+bet,{startAt:0,cards:{},winner:null,seed:0});return;
+  }
+  let now=Math.floor(Date.now()/1000);
+  if(!room.startAt||room.startAt===0||now<room.startAt){
+    document.getElementById("lobby").style.display="block";document.getElementById("game").style.display="none";
+    document.getElementById("statusMsg").innerText=room.startAt>now?"⏳ ጨዋታው ሊጀምር: "+(room.startAt-now)+" ሰከንድ":"⏳ ቢያንስ 2 ካርቴላ እስኪመረጥ በመጠበቅ ላይ... ("+cnt+"/2)";
+    dGrid();
+  }else{
+    document.getElementById("lobby").style.display="none";document.getElementById("game").style.display="block";
+    if(myCards.length>0){
+      if(!document.getElementById("boards").innerHTML)buildBoards();
+      document.getElementById("boards").style.display="block";document.getElementById("wt").style.display="none";
+    }else{
+      document.getElementById("boards").style.display="none";document.getElementById("wt").style.display="block";
+    }
+    let idx=Math.min(74,Math.floor((now-room.startAt)/3.5));
+    if(idx!==lastIdx){
+      lastIdx=idx;calledNums=getOrder(room.seed||12345).slice(0,idx+1);
+      let n=calledNums[calledNums.length-1];
+      document.getElementById("cur").innerText="BINGO"[Math.floor((n-1)/15)]+"-"+n;
+      document.getElementById("cnt").innerText=calledNums.length;
+      document.getElementById("hist").innerText=calledNums.slice(-5).join(", ");
+      pAud(n);
+    }
+    if(idx>=74){myCards=new Array();banned=new Array();lastIdx=-1;document.getElementById("cid").innerText="--";document.getElementById("boards").innerHTML="";await dbPut("rooms/b"+bet,{startAt:0,cards:{},winner:null,seed:0})}
+  }
 }
 async function cWin(cNum){
-if(banned.indexOf(cNum)!==-1)return;
-let ok=function(c,r){
-if(c===2&&r===2)return true;
-let e=document.getElementById("x-"+cNum+"-"+c+"-"+r);
-if(!e||!e.classList.contains("mk"))return false;
-return calledNums.indexOf(parseInt(e.dataset.val))!==-1;
-};
-let w=0;
-for(let i=0;i<5;i++)if((ok(0,i)&&ok(1,i)&&ok(2,i)&&ok(3,i)&&ok(4,i))||(ok(i,0)&&ok(i,1)&&ok(i,2)&&ok(i,3)&&ok(i,4)))w=1;
-if((ok(0,0)&&ok(1,1)&&ok(2,2)&&ok(3,3)&&ok(4,4))||(ok(0,4)&&ok(1,3)&&ok(2,2)&&ok(3,1)&&ok(4,0)))w=1;
-if(ok(0,0)&&ok(4,0)&&ok(0,4)&&ok(4,4))w=1;
-if(w){
-let cnt=Object.keys(room.cards||{}).length;
-let wa=cnt*bet*0.8;
-bal+=wa;await dbPut("users/"+uid+"/balance",Number(bal.toFixed(2)));
-document.getElementById("bal").innerText=bal.toFixed(2);
-await dbPatch("rooms/b"+bet,{winner:cNum});
-alert("🎉🏆 BINGO አሸንፈዋል! +"+wa.toFixed(2)+" ብር");
-}else{
-banned.push(cNum);
-document.getElementById("wrap-"+cNum).classList.add("ban");
-let b=document.getElementById("wbtn-"+cNum);b.disabled=true;b.innerText="🚫 ታግዷል (ያለ ቢንጎ ተነክቷል)";
-alert("🚫 ካርቴላ #"+cNum+" ገና ቢንጎ ሳይሞላ ስለተነካ ታግዷል!");
-}
+  if(banned.indexOf(cNum)!==-1)return;
+  let ok=function(c,r){if(c===2&&r===2)return 1;let e=document.getElementById("x-"+cNum+"-"+c+"-"+r);return e&&e.classList.contains("mk")&&calledNums.indexOf(parseInt(e.dataset.val))!==-1};
+  let w=0;
+  for(let i=0;i<5;i++)if((ok(0,i)&&ok(1,i)&&ok(2,i)&&ok(3,i)&&ok(4,i))||(ok(i,0)&&ok(i,1)&&ok(i,2)&&ok(i,3)&&ok(i,4)))w=1;
+  if((ok(0,0)&&ok(1,1)&&ok(2,2)&&ok(3,3)&&ok(4,4))||(ok(0,4)&&ok(1,3)&&ok(2,2)&&ok(3,1)&&ok(4,0)))w=1;
+  if(ok(0,0)&&ok(4,0)&&ok(0,4)&&ok(4,4))w=1;
+  if(w){
+    let wa=Object.keys(room.cards||{}).length*bet*0.8;
+    bal+=wa;await dbPut("users/"+uid+"/balance",Number(bal.toFixed(2)));
+    document.getElementById("bal").innerText=bal.toFixed(2);
+    await dbPatch("rooms/b"+bet,{winner:cNum});
+    alert("🎉🏆 BINGO አሸንፈዋል! +"+wa.toFixed(2)+" ብር");
+  }else{
+    banned.push(cNum);document.getElementById("wrap-"+cNum).classList.add("ban");
+    let b=document.getElementById("wbtn-"+cNum);b.disabled=true;b.innerText="🚫 ታግዷል (ያለ ቢንጎ ተነክቷል)";
+    alert("🚫 ካርቴላ #"+cNum+" ገና ቢንጎ ሳይሞላ ስለተነካ ታግዷል!");
+  }
 }
 loadBal();setInterval(syncRoom,1500);syncRoom();
 </script>
