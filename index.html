@@ -1,174 +1,102 @@
 <!DOCTYPE html>
 <html lang="am">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JOLLY BINGO</title>
-    <script src="https://telegram.org"></script>
-    <style>
-        body { font-family: sans-serif; background: #0f172a; color: white; text-align: center; margin: 0; padding: 10px; }
-        h1 { color: #fbbf24; margin: 5px 0; font-size: 22px; }
-        .top { display: flex; justify-content: space-around; background: #1e293b; padding: 8px; border-radius: 10px; margin-bottom: 8px; font-weight: bold; font-size: 13px; }
-        .timer { background: #b91c1c; color: #fef08a; padding: 8px; border-radius: 8px; font-weight: bold; margin-bottom: 8px; border: 1px solid #fbbf24; }
-        .bets button { background: #2563eb; color: white; border: none; padding: 7px 12px; margin: 2px; border-radius: 6px; font-weight: bold; }
-        .bets button.active { background: #16a34a; border: 2px solid #fbbf24; }
-        .grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; max-height: 330px; overflow-y: auto; background: #1e293b; padding: 8px; border-radius: 10px; margin-top: 8px; }
-        .cbtn { background: #334155; color: white; border: none; padding: 8px 0; border-radius: 5px; font-weight: bold; font-size: 12px; }
-        .cbtn.sel { background: #22c55e; color: #0f172a; }
-        #game { display: none; }
-        .callbox { background: #1e293b; border: 2px solid #fbbf24; border-radius: 10px; padding: 8px; margin: 8px auto; max-width: 300px; }
-        .num { font-size: 34px; font-weight: bold; color: #4ade80; }
-        table { margin: 8px auto; border-collapse: collapse; background: #1e293b; }
-        th { background: #fbbf24; color: #0f172a; width: 48px; height: 35px; font-size: 18px; }
-        td { width: 48px; height: 48px; border: 1px solid #334155; font-size: 16px; font-weight: bold; }
-        td.mark { background: #22c55e; color: #0f172a; }
-        td.free { background: #38bdf8; color: #0f172a; font-size: 11px; }
-        .winbtn { background: #ef4444; color: white; border: none; padding: 12px 30px; font-size: 18px; font-weight: bold; border-radius: 20px; margin-top: 8px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JOLLY BINGO</title>
+<script src="https://telegram.org"></script>
+<style>
+body{font-family:sans-serif;background:#0f172a;color:#fff;text-align:center;margin:0;padding:10px}
+h1{color:#fbbf24;margin:4px 0;font-size:22px}
+.top{display:flex;justify-content:space-around;background:#1e293b;padding:8px;border-radius:10px;margin-bottom:6px;font-weight:700;font-size:13px}
+.pot{background:#064e3b;border:1px solid #34d399;color:#a7f3d0;padding:7px;border-radius:8px;margin-bottom:8px;font-size:13px;font-weight:700}
+.tmr{background:#b91c1c;color:#fef08a;padding:8px;border-radius:8px;font-weight:700;margin-bottom:8px;border:1px solid #fbbf24}
+.bets button{background:#2563eb;color:#fff;border:none;padding:7px 12px;margin:2px;border-radius:6px;font-weight:700}
+.bets button.act{background:#16a34a;border:2px solid #fbbf24}
+.grid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;max-height:310px;overflow-y:auto;background:#1e293b;padding:8px;border-radius:10px;margin-top:8px}
+.cb{background:#334155;color:#fff;border:none;padding:8px 0;border-radius:5px;font-weight:700;font-size:12px}
+.cb.sel{background:#22c55e;color:#0f172a}
+#game{display:none}
+.cbox{background:#1e293b;border:2px solid #fbbf24;border-radius:10px;padding:8px;margin:8px auto;max-width:300px}
+.num{font-size:34px;font-weight:700;color:#4ade80}
+table{margin:8px auto;border-collapse:collapse;background:#1e293b}
+th{background:#fbbf24;color:#0f172a;width:48px;height:35px;font-size:18px}
+td{width:48px;height:48px;border:1px solid #334155;font-size:16px;font-weight:700}
+td.mk{background:#22c55e;color:#0f172a}
+td.fr{background:#38bdf8;color:#0f172a;font-size:11px}
+.wbtn{background:#ef4444;color:#fff;border:none;padding:12px 30px;font-size:18px;font-weight:700;border-radius:20px;margin-top:8px}
+</style>
 </head>
 <body>
-    <h1>🎉 JOLLY BINGO 🎉</h1>
-    <div class="top">
-        <span>💳 ሂሳብ: <span id="bal">10.00</span> ብር</span>
-        <span>🎫 ካርቴላ: #<span id="cid">--</span></span>
-        <button id="snd" onclick="toggleSnd()" style="background:#334155;color:white;border:none;border-radius:5px;">🔊</button>
-    </div>
-
-    <div id="lobby">
-        <div class="timer">⏳ ጨዋታው ሊጀምር: <span id="sec">30</span> ሰከንድ</div>
-        <div class="bets">
-            <button id="b10" class="active" onclick="setBet(10)">10 ብር</button>
-            <button id="b20" onclick="setBet(20)">20 ብር</button>
-            <button id="b50" onclick="setBet(50)">50 ብር (ሳምንታዊ)</button>
-        </div>
-        <div class="grid" id="grid"></div>
-    </div>
-
-    <div id="game">
-        <div class="callbox">
-            <div>🎱 የሚጠራው ቁጥር</div>
-            <div class="num" id="cur">--</div>
-            <div style="font-size:12px;color:#94a3b8;">የወጡ: <span id="hist">--</span></div>
-        </div>
-        <div id="carea">
-            <table><thead><tr><th>B</th><th>I</th><th>N</th><th>G</th><th>O</th></tr></thead><tbody id="tbody"></tbody></table>
-            <button class="winbtn" onclick="checkWin()">🎉 BINGO!</button>
-        </div>
-        <div id="watch" style="display:none;color:#fbbf24;margin-top:20px;">👁 ካርቴላ ስላልመረጡ ጨዋታውን እየተመለከቱ ነው...</div>
-    </div>
-
-    <script>
-        let bal = 10, bet = 10, myCard = null, drawn = [], t1 = null, t2 = null, sec = 30, snd = true;
-
-        function toggleSnd() { snd = !snd; document.getElementById("snd").innerText = snd ? "🔊" : "🔇"; }
-        function playAudio(n) { if (snd) { new Audio("sounds/" + n + ".mp3").play().catch(function(){}); } }
-
-        function makeCard(num) {
-            let s = num * 9301 + 49297;
-            let rnd = function() { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; };
-            let card = [];
-            for (let c = 0; c < 5; c++) {
-                let p = [], st = c * 15 + 1;
-                for (let n = st; n < st + 15; n++) p.push(n);
-                for (let i = p.length - 1; i > 0; i--) { let j = Math.floor(rnd() * (i + 1)); let x = p[i]; p[i] = p[j]; p[j] = x; }
-                card.push(p.slice(0, 5));
-            }
-            return card;
-        }
-
-        function drawGrid() {
-            let g = document.getElementById("grid"); g.innerHTML = "";
-            for (let i = 1; i <= 400; i++) {
-                let b = document.createElement("button"); b.innerText = i; b.id = "c" + i; b.className = "cbtn";
-                b.onclick = function() { pick(i); };
-                g.appendChild(b);
-            }
-        }
-
-        function setBet(a) {
-            if (myCard) return;
-            bet = a;
-            document.querySelectorAll(".bets button").forEach(function(b) { b.classList.remove("active"); });
-            document.getElementById("b" + a).classList.add("active");
-        }
-
-        function pick(n) {
-            if (myCard) { alert("✅ ካርቴላ #" + myCard + " መርጠዋል!"); return; }
-            if (bal < bet) { alert("❌ በቂ ሂሳብ የለዎትም!"); return; }
-            bal -= bet; myCard = n;
-            document.getElementById("bal").innerText = bal.toFixed(2);
-            document.getElementById("cid").innerText = n;
-            document.getElementById("c" + n).classList.add("sel");
-        }
-
-        function startTimer() {
-            sec = 30; document.getElementById("sec").innerText = sec;
-            if (t1) clearInterval(t1);
-            t1 = setInterval(function() {
-                sec--; document.getElementById("sec").innerText = sec;
-                if (sec <= 0) { clearInterval(t1); startGame(); }
-            }, 1000);
-        }
-
-        function startGame() {
-            document.getElementById("lobby").style.display = "none";
-            document.getElementById("game").style.display = "block";
-            drawn = [];
-            if (myCard) {
-                document.getElementById("carea").style.display = "block";
-                document.getElementById("watch").style.display = "none";
-                let card = makeCard(myCard), tb = document.getElementById("tbody"); tb.innerHTML = "";
-                for (let r = 0; r < 5; r++) {
-                    let tr = document.createElement("tr");
-                    for (let c = 0; c < 5; c++) {
-                        let td = document.createElement("td");
-                        if (r === 2 && c === 2) { td.innerText = "FREE"; td.className = "free mark"; }
-                        else { td.innerText = card[c][r]; td.id = "x" + c + r; td.onclick = function() { td.classList.toggle("mark"); }; }
-                        tr.appendChild(td);
-                    }
-                    tb.appendChild(tr);
-                }
-            } else {
-                document.getElementById("carea").style.display = "none";
-                document.getElementById("watch").style.display = "block";
-            }
-            if (t2) clearInterval(t2);
-            callNum(); t2 = setInterval(callNum, 3500);
-        }
-
-        function callNum() {
-            if (drawn.length >= 75) { clearInterval(t2); resetAll(); return; }
-            let n; do { n = Math.floor(Math.random() * 75) + 1; } while (drawn.indexOf(n) !== -1);
-            drawn.push(n);
-            document.getElementById("cur").innerText = "BINGO"[Math.floor((n - 1) / 15)] + "-" + n;
-            document.getElementById("hist").innerText = drawn.slice(-5).join(", ");
-            playAudio(n);
-        }
-
-        function checkWin() {
-            let ok = function(c, r) { let e = document.getElementById("x" + c + r); return (e && e.classList.contains("mark")) || (c === 2 && r === 2); };
-            let w = false;
-            for (let i = 0; i < 5; i++) {
-                if ((ok(0,i)&&ok(1,i)&&ok(2,i)&&ok(3,i)&&ok(4,i)) || (ok(i,0)&&ok(i,1)&&ok(i,2)&&ok(i,3)&&ok(i,4))) w = true;
-            }
-            if ((ok(0,0)&&ok(1,1)&&ok(2,2)&&ok(3,3)&&ok(4,4)) || (ok(0,4)&&ok(1,3)&&ok(2,2)&&ok(3,1)&&ok(4,0))) w = true;
-            if (ok(0,0) && ok(4,0) && ok(0,4) && ok(4,4)) w = true;
-            if (w) {
-                clearInterval(t2); bal += bet * 2;
-                document.getElementById("bal").innerText = bal.toFixed(2);
-                alert("🎉🏆 BINGO አሸንፈዋል!"); resetAll();
-            } else { alert("❌ ገና ቢንጎ አልሞላም!"); }
-        }
-
-        function resetAll() {
-            if (t2) clearInterval(t2);
-            myCard = null; document.getElementById("cid").innerText = "--";
-            document.getElementById("game").style.display = "none";
-            document.getElementById("lobby").style.display = "block";
-            drawGrid(); startTimer();
-        }
-
-        drawGrid(); startTimer();
-    </script>
+<h1>🎉 JOLLY BINGO 🎉</h1>
+<div class="top">
+<span>💳 ሂሳብ: <span id="bal">10.00</span> ብር</span>
+<span>🎫 ካርቴላ: #<span id="cid">--</span></span>
+<button id="snd" onclick="tSnd()" style="background:#334155;color:#fff;border:none;border-radius:5px">🔊</button>
+</div>
+<div class="pot">👥 ተጫዋቾች: <span id="pc">1</span> | 🏆 ደራሽ (80%): <span id="prz" style="color:#fbbf24">8.00</span> ብር</div>
+<div id="lobby">
+<div class="tmr">⏳ ጨዋታው ሊጀምር: <span id="sec">30</span> ሰከንድ</div>
+<div class="bets">
+<button id="b10" class="act" onclick="sBet(10)">10 ብር</button>
+<button id="b20" onclick="sBet(20)">20 ብር</button>
+<button id="b50" onclick="sBet(50)">50 ብር (ሳምንታዊ)</button>
+</div>
+<div class="grid" id="grid"></div>
+</div>
+<div id="game">
+<div class="cbox"><div>🎱 የሚጠራው ቁጥር</div><div class="num" id="cur">--</div><div style="font-size:12px;color:#94a3b8">የወጡ: <span id="hist">--</span></div></div>
+<div id="ca"><table><thead><tr><th>B</th><th>I</th><th>N</th><th>G</th><th>O</th></tr></thead><tbody id="tb"></tbody></table><button class="wbtn" onclick="cWin()">🎉 BINGO!</button></div>
+<div id="wt" style="display:none;color:#fbbf24;margin-top:20px">👁 ካርቴላ ስላልመረጡ ጨዋታውን እየተመለከቱ ነው...</div>
+</div>
+<script>
+let bal=10,bet=10,mc=null,pl=1,dr=[],t1=null,t2=null,sec=30,snd=1;
+function tSnd(){snd=!snd;document.getElementById("snd").innerText=snd?"🔊":"🔇"}
+function pAud(n){if(snd)new Audio("sounds/"+n+".mp3").play().catch(function(){})}
+function uPot(){document.getElementById("pc").innerText=pl;document.getElementById("prz").innerText=(pl*bet*0.8).toFixed(2)}
+function mCard(num){
+let s=num*9301+49297,rnd=function(){s=(s*1664525+1013904223)%4294967296;return s/4294967296},card=[];
+for(let c=0;c<5;c++){let p=[],st=c*15+1;for(let n=st;n<st+15;n++)p.push(n);for(let i=p.length-1;i>0;i--){let j=Math.floor(rnd()*(i+1)),x=p[i];p[i]=p[j];p[j]=x}card.push(p.slice(0,5))}
+return card
+}
+function dGrid(){
+let g=document.getElementById("grid");g.innerHTML="";
+for(let i=1;i<=400;i++){let b=document.createElement("button");b.innerText=i;b.id="c"+i;b.className="cb";b.onclick=function(){pick(i)};g.appendChild(b)}
+}
+function sBet(a){if(mc)return;bet=a;document.querySelectorAll(".bets button").forEach(function(b){b.classList.remove("act")});document.getElementById("b"+a).classList.add("act");uPot()}
+function pick(n){
+if(mc){alert("✅ ካርቴላ #"+mc+" መርጠዋል!");return}
+if(bal<bet){alert("❌ በቂ ሂሳብ የለዎትም!");return}
+bal-=bet;mc=n;pl++;document.getElementById("bal").innerText=bal.toFixed(2);document.getElementById("cid").innerText=n;document.getElementById("c"+n).classList.add("sel");uPot()
+}
+function sTmr(){
+sec=30;pl=1;uPot();document.getElementById("sec").innerText=sec;if(t1)clearInterval(t1);
+t1=setInterval(function(){sec--;document.getElementById("sec").innerText=sec;if(sec<=0){clearInterval(t1);sGame()}},1000)
+}
+function sGame(){
+document.getElementById("lobby").style.display="none";document.getElementById("game").style.display="block";dr=[];
+if(mc){
+document.getElementById("ca").style.display="block";document.getElementById("wt").style.display="none";
+let card=mCard(mc),tb=document.getElementById("tb");tb.innerHTML="";
+for(let r=0;r<5;r++){let tr=document.createElement("tr");for(let c=0;c<5;c++){let td=document.createElement("td");if(r===2&&c===2){td.innerText="FREE";td.className="fr mk"}else{td.innerText=card[c][r];td.id="x"+c+r;td.onclick=function(){td.classList.toggle("mk")}}tr.appendChild(td)}tb.appendChild(tr)}
+}else{document.getElementById("ca").style.display="none";document.getElementById("wt").style.display="block"}
+if(t2)clearInterval(t2);cNum();t2=setInterval(cNum,3500)
+}
+function cNum(){
+if(dr.length>=75){clearInterval(t2);rAll();return}
+let n;do{n=Math.floor(Math.random()*75)+1}while(dr.indexOf(n)!==-1);
+dr.push(n);document.getElementById("cur").innerText="BINGO"[Math.floor((n-1)/15)]+"-"+n;document.getElementById("hist").innerText=dr.slice(-5).join(", ");pAud(n)
+}
+function cWin(){
+let ok=function(c,r){let e=document.getElementById("x"+c+r);return(e&&e.classList.contains("mk"))||(c===2&&r===2)},w=0;
+for(let i=0;i<5;i++)if((ok(0,i)&&ok(1,i)&&ok(2,i)&&ok(3,i)&&ok(4,i))||(ok(i,0)&&ok(i,1)&&ok(i,2)&&ok(i,3)&&ok(i,4)))w=1;
+if((ok(0,0)&&ok(1,1)&&ok(2,2)&&ok(3,3)&&ok(4,4))||(ok(0,4)&&ok(1,3)&&ok(2,2)&&ok(3,1)&&ok(4,0)))w=1;
+if(ok(0,0)&&ok(4,0)&&ok(0,4)&&ok(4,4))w=1;
+if(w){clearInterval(t2);let wa=pl*bet*0.8;bal+=wa;document.getElementById("bal").innerText=bal.toFixed(2);alert("🎉🏆 BINGO አሸንፈዋል! +"+wa.toFixed(2)+" ብር");rAll()}
+else alert("❌ ገና ቢንጎ አልሞላም!")
+}
+function rAll(){if(t2)clearInterval(t2);mc=null;document.getElementById("cid").innerText="--";document.getElementById("game").style.display="none";document.getElementById("lobby").style.display="block";dGrid();sTmr()}
+dGrid();sTmr();
+</script>
 </body>
 </html>
