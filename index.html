@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="am">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JOLLY BINGO</title>
+    <script src="https://telegram.org"></script>
+    <style>
+        body { font-family: sans-serif; background: #0f172a; color: white; text-align: center; margin: 0; padding: 12px; }
+        h1 { color: #fbbf24; margin: 5px 0; font-size: 24px; }
+        .top-bar { display: flex; justify-content: space-around; align-items: center; background: #1e293b; padding: 10px; border-radius: 12px; margin-bottom: 12px; font-weight: bold; font-size: 14px; }
+        .bet-row button { background: #2563eb; color: white; border: none; padding: 8px 14px; margin: 3px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .bet-row button.active { background: #16a34a; border: 2px solid #fbbf24; }
+        .bet-row button.weekly { background: #d97706; }
+        .grid-400 { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; max-height: 360px; overflow-y: auto; background: #1e293b; padding: 10px; border-radius: 12px; margin-top: 10px; }
+        .cartela-btn { background: #334155; color: white; border: none; padding: 8px 0; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; }
+        .cartela-btn.taken { background: #dc2626; color: #fca5a5; }
+        #gameScreen { display: none; }
+        .called-box { background: #1e293b; border: 2px solid #fbbf24; border-radius: 12px; padding: 10px; margin: 10px auto; max-width: 310px; }
+        .big-num { font-size: 34px; font-weight: bold; color: #4ade80; }
+        table { margin: 10px auto; border-collapse: collapse; background: #1e293b; }
+        th { background: #fbbf24; color: #0f172a; width: 50px; height: 38px; font-size: 18px; }
+        td { width: 50px; height: 50px; border: 1px solid #334155; font-size: 17px; font-weight: bold; cursor: pointer; }
+        td.marked { background: #22c55e; color: #0f172a; }
+        td.free { background: #38bdf8; color: #0f172a; font-size: 12px; }
+        .bingo-btn { background: #ef4444; color: white; border: none; padding: 14px 35px; font-size: 18px; font-weight: bold; border-radius: 25px; cursor: pointer; margin-top: 8px; }
+        .back-btn { background: #475569; color: white; border: none; padding: 8px 15px; border-radius: 8px; margin-top: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🎉 JOLLY BINGO 🎉</h1>
+    <div class="top-bar">
+        <span>💳 ሂሳብ: <span id="balance" style="color:#38bdf8;">10.00</span> ብር</span>
+        <span>🎫 ካርቴላ: #<span id="myCardNum" style="color:#fbbf24;">--</span></span>
+        <button id="muteBtn" onclick="toggleSound()" style="background:#334155; color:white; border:none; border-radius:6px; padding:5px 8px;">🔊 ድምፅ</button>
+    </div>
+
+    <div id="selectionScreen">
+        <div class="bet-row">
+            <button id="b10" class="active" onclick="setBet(10)">🎲 10 ብር</button>
+            <button id="b20" onclick="setBet(20)">🎲 20 ብር</button>
+            <button id="b50" class="weekly" onclick="setBet(50)">🏆 50 ብር (ሳምንታዊ)</button>
+        </div>
+        <p style="font-size:13px; color:#cbd5e1;">ከ 1 እስከ 400 የዕድል ካርቴላዎን ይምረጡ (<span style="color:#f87171;">ቀይ = የተያዘ</span>)፦</p>
+        <div class="grid-400" id="grid400"></div>
+    </div>
+
+    <div id="gameScreen">
+        <div class="called-box">
+            <div style="font-size:13px;">🎱 የሚጠራው ቁጥር</div>
+            <div class="big-num" id="currentNum">--</div>
+            <div style="font-size:12px; color:#94a3b8;">የወጡ: <span id="historyList">--</span></div>
+        </div>
+        <table>
+            <thead><tr><th>B</th><th>I</th><th>N</th><th>G</th><th>O</th></tr></thead>
+            <tbody id="boardBody"></tbody>
+        </table>
+        <button class="bingo-btn" onclick="checkBingo()">🎉 BINGO!</button><br>
+        <button class="back-btn" onclick="backToMenu()">⬅️ ሌላ ካርቴላ ምረጥ</button>
+    </div>
+
+    <script>
+        let balance = 10.00, selectedBet = 10, drawn = [], timer = null, soundOn = true;
+        let takenCards =;
+
+        function toggleSound() {
+            soundOn = !soundOn;
+            document.getElementById("muteBtn").innerText = soundOn ? "🔊 ድምፅ" : "🔇 ዝግ";
+        }
+
+        function playVoice(num) {
+            if (!soundOn) return;
+            let audio = new Audio(`sounds/${num}.mp3`);
+            audio.play().catch(() => {});
+        }
+
+        function getFixedCard(cardNumber) {
+            let seed = cardNumber * 9301 + 49297;
+            function nextRand() {
+                seed = (seed * 1664525 + 1013904223) % 4294967296;
+                return seed / 4294967296;
+            }
+                        const ranges = [[1,15], [16,30], [31,45], [46,60], [61,75]];
+
+            let card = [];
+            for (let col = 0; col < 5; col++) {
+                let pool = [];
+                for (let n = ranges[col]; n <= ranges[col]; n++) pool.push(n);
+                for (let i = pool.length - 1; i > 0; i--) {
+                    const j = Math.floor(nextRand() * (i + 1));
+                    [pool[i], pool[j]] = [pool[j], pool[i]];
+                }
+                card.push(pool.slice(0, 5));
+            }
+            return card;
+        }
+
+        function render400Grid() {
+            const grid = document.getElementById("grid400");
+                            grid.innerHTML = "";
+
+            for (let i = 1; i <= 400; i++) {
+                let btn = document.createElement("button");
+                btn.innerText = i;
+                btn.className = "cartela-btn";
+                if (takenCards.includes(i)) {
+                    btn.classList.add("taken");
+                    btn.onclick = () => alert(`❌ ካርቴላ #${i} ተይዟል!`);
+                } else {
+                    btn.onclick = () => pickCard(i);
+                }
+                grid.appendChild(btn);
+            }
+        }
+
+        function setBet(amt) {
+            selectedBet = amt;
+            document.querySelectorAll(".bet-row button").forEach(b => b.classList.remove("active"));
+            document.getElementById("b" + amt).classList.add("active");
+        }
+
+        function pickCard(cardNum) {
+            if (balance < selectedBet) { alert("❌ በቂ ሂሳብ የለዎትም!"); return; }
+            balance -= selectedBet;
+            document.getElementById("balance").innerText = balance.toFixed(2);
+            document.getElementById("myCardNum").innerText = cardNum;
+            takenCards.push(cardNum);
+
+            const card = getFixedCard(cardNum);
+            const tbody = document.getElementById("boardBody");
+            tbody.innerHTML = "";
+            for (let row = 0; row < 5; row++) {
+                let tr = document.createElement("tr");
+                for (let col = 0; col < 5; col++) {
+                    let td = document.createElement("td");
+                    if (row === 2 && col === 2) { td.innerText = "FREE"; td.className = "free marked"; }
+                    else { td.innerText = card[col][row]; td.id = `cell-${col}-${row}`; td.onclick = () => td.classList.toggle("marked"); }
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            }
+            document.getElementById("selectionScreen").style.display = "none";
+            document.getElementById("gameScreen").style.display = "block";
+            drawn = [];
+            if (timer) clearInterval(timer);
+            timer = setInterval(callNextNumber, 3500);
+        }
+
+        function callNextNumber() {
+            if (drawn.length >= 75) { clearInterval(timer); return; }
+            let num;
+            do { num = Math.floor(Math.random() * 75) + 1; } while (drawn.includes(num));
+            drawn.push(num);
+            const letter = "BINGO"[Math.floor((num - 1) / 15)];
+            document.getElementById("currentNum").innerText = `${letter}-${num}`;
+            document.getElementById("historyList").innerText = drawn.slice(-5).join(", ");
+            playVoice(num);
+        }
+
+        function checkBingo() {
+            const isMarked = (c, r) => document.getElementById(`cell-${c}-${r}`)?.classList.contains("marked") || (c === 2 && r === 2);
+            let win = false;
+            for (let i = 0; i < 5; i++) {
+                if (.every(c => isMarked(c, i)) ||.every(r => isMarked(i, r))) win = true;
+            }
+            if (.every(i => isMarked(i, i)) ||.every(i => isMarked(i, 4 - i))) win = true;
+            if (isMarked(0,0) && isMarked(4,0) && isMarked(0,4) && isMarked(4,4)) win = true;
+
+            if (win) {
+                clearInterval(timer);
+                let prize = selectedBet * 2;
+                balance += prize;
+                document.getElementById("balance").innerText = balance.toFixed(2);
+                alert(`🎉🏆 BINGO አሸንፈዋል! +${prize} ብር`);
+                backToMenu();
+            } else { alert("❌ ገና ቢንጎ አልሞላም!"); }
+        }
+
+        function backToMenu() {
+            if (timer) clearInterval(timer);
+            document.getElementById("gameScreen").style.display = "none";
+            document.getElementById("selectionScreen").style.display = "block";
+            render400Grid();
+        }
+        render400Grid();
+    </script>
+</body>
+</html>
